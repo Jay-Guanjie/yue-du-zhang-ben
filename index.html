@@ -473,13 +473,25 @@ function renderSummary() {
   netEl.innerHTML = `<div style="font-size:13px;color:#888;margin-bottom:4px;">${netLabel}</div><div style="font-size:24px;font-weight:700;color:${netColor};">${fmt(Math.abs(netIncome))}</div>`;
 }
 
+function renameItem(category, oldName) {
+  const newName = prompt('请输入新名称：', oldName);
+  if (!newName || newName === oldName) return;
+  if (monthData[category][newName] !== undefined) {
+    alert('该名称已存在'); return;
+  }
+  monthData[category][newName] = monthData[category][oldName];
+  delete monthData[category][oldName];
+  renderAll();
+  markDirty();
+}
+
 function renderBankGrid() {
   const g = document.getElementById('bankGrid');
   g.innerHTML = Object.entries(monthData.bankAccounts).map(([name,val]) => `
     <div class="field">
-      <label>${name}</label>
+      <label onclick="renameItem('bankAccounts','${name}')" style="cursor:pointer;">${name} ✏️</label>
       <input type="text" value="${fmt(val)}"
-        onfocus="if(this.value.includes(","))this.value=parseFloat(this.value.replace(/[^0-9.-]/g,''))||0"
+        onfocus="if(this.value.includes(','))this.value=parseFloat(this.value.replace(/[^0-9.-]/g,''))||0"
         onchange="monthData.bankAccounts['${name}']=num(this.value);renderSummary();markDirty();">
     </div>
   `).join('');
@@ -489,7 +501,7 @@ function renderLicaiGrid() {
   const g = document.getElementById('licaiGrid');
   g.innerHTML = Object.entries(monthData.licai).map(([name,val]) => `
     <div class="field">
-      <label>${name}</label>
+      <label onclick="renameItem('licai','${name}')" style="cursor:pointer;">${name} ✏️</label>
       <div class="dynamic-field">
         <input type="text" value="${fmt(val)}"
           onfocus="if(this.value.includes(","))this.value=parseFloat(this.value.replace(/[^0-9.-]/g,''))||0"
@@ -504,7 +516,7 @@ function renderFundGrid() {
   const g = document.getElementById('fundGrid');
   g.innerHTML = Object.entries(monthData.funds).map(([name,val]) => `
     <div class="field">
-      <label>${name}</label>
+      <label onclick="renameItem('funds','${name}')" style="cursor:pointer;">${name} ✏️</label>
       <div class="dynamic-field">
         <input type="text" value="${fmt(val)}"
           onfocus="if(this.value.includes(","))this.value=parseFloat(this.value.replace(/[^0-9.-]/g,''))||0"
@@ -519,7 +531,7 @@ function renderDebtGrid() {
   const g = document.getElementById('debtGrid');
   g.innerHTML = Object.entries(monthData.debts).map(([name,val]) => `
     <div class="field">
-      <label>${name}</label>
+      <label onclick="renameItem('debts','${name}')" style="cursor:pointer;">${name} ✏️</label>
       <div class="dynamic-field">
         <input type="text" value="${fmt(val)}"
           onfocus="if(this.value.includes(","))this.value=parseFloat(this.value.replace(/[^0-9.-]/g,''))||0"
@@ -534,7 +546,7 @@ function renderIncomeGrid() {
   const g = document.getElementById('incomeGrid');
   g.innerHTML = Object.entries(monthData.income).map(([name,val]) => `
     <div class="field">
-      <label>${name}</label>
+      <label onclick="renameItem('income','${name}')" style="cursor:pointer;">${name} ✏️</label>
       <div class="dynamic-field">
         <input type="text" value="${fmt(val)}"
           onfocus="if(this.value.includes(","))this.value=parseFloat(this.value.replace(/[^0-9.-]/g,''))||0"
@@ -549,7 +561,7 @@ function renderExpenseGrid() {
   const g = document.getElementById('expenseGrid');
   g.innerHTML = Object.entries(monthData.expenses).map(([name,val]) => `
     <div class="field">
-      <label>${name}</label>
+      <label onclick="renameItem('expenses','${name}')" style="cursor:pointer;">${name} ✏️</label>
       <div class="dynamic-field">
         <input type="text" value="${fmt(val)}"
           onfocus="if(this.value.includes(","))this.value=parseFloat(this.value.replace(/[^0-9.-]/g,''))||0"
