@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>月度账本 - 2026</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background: #f0f2f5; color: #333; }
+input, button { font-family: inherit; }
+/* ======== 登录页 ======== */
+#loginPage {
+  display: flex; justify-content: center; align-items: center;
+  min-height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+#loginPage.hidden { display: none; }
+.login-card {
+  background: #fff; border-radius: 16px; padding: 40px; width: 360px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.15); text-align: center;
+}
+.login-card h1 { font-size: 24px; margin-bottom: 8px; color: #333; }
+.login-card p { font-size: 14px; color: #999; margin-bottom: 24px; }
+.login-card input {
+  width: 100%; padding: 14px 16px; border: 2px solid #e8e8e8;
+  border-radius: 10px; font-size: 16px; margin-bottom: 16px; outline: none;
+  transition: border-color .2s;
+}
+.login-card input:focus { border-color: #667eea; }
+.login-card button {
+  width: 100%; padding: 14px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 16px; cursor: pointer;
+  transition: opacity .2s;
+}
+.login-card button:hover { opacity: .9; }
+.login-error { color: #e74c3c; font-size: 13px; margin-bottom: 12px; min-height: 20px; }
+
+/* ======== 主界面 ======== */
+#app.hidden { display: none; }
+.header {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; padding: 20px 24px; display: flex; justify-content: space-between;
+  align-items: center; position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,.1);
+}
+.header h1 { font-size: 20px; }
+.header-actions { display: flex; gap: 12px; align-items: center; }
+.header-actions button, .header-actions select {
+  background: rgba(255,255,255,.2); color: #fff; border: none;
+  padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 14px;
+}
+.header-actions select { background: rgba(255,255,255,.15); }
+.header-actions select option { color: #333; }
+.header-actions button:hover { background: rgba(255,255,255,.3); }
+
+.container { max-width: 1400px; margin: 0 auto; padding: 20px 16px; }
+.section { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.section-title { font-size: 16px; font-weight: 600; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px solid #667eea; color: #444; display: flex; justify-content: space-between; align-items: center; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.field { display: flex; flex-direction: column; }
+.field label { font-size: 12px; color: #888; margin-bottom: 4px; }
+.field input {
+  padding: 8px 10px; border: 1.5px solid #e0e0e0; border-radius: 8px;
+  font-size: 14px; outline: none; transition: border-color .2s; background: #fafafa;
+}
+.field input:focus { border-color: #667eea; background: #fff; }
+.field-static {
+  padding: 8px 10px; border-radius: 8px; font-size: 14px; background: #f5f5f5;
+  color: #555; min-height: 36px; display: flex; align-items: center;
+}
+.summary-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 0; }
+.summary-card {
+  background: linear-gradient(135deg, #f8f9ff, #eef0ff);
+  border-radius: 12px; padding: 20px; text-align: center;
+}
+.summary-card.big { padding: 28px 20px; }
+.summary-card .label { font-size: 13px; color: #888; margin-bottom: 6px; }
+.summary-card .amount { font-size: 28px; font-weight: 700; color: #333; }
+.summary-card .amount.green { color: #27ae60; }
+.summary-card .amount.red { color: #e74c3c; }
+.add-btn { cursor: pointer; color: #667eea; font-size: 13px; }
+.add-btn:hover { text-decoration: underline; }
+.remove-btn { color: #e74c3c; cursor: pointer; font-size: 12px; margin-left: 6px; }
+.remove-btn:hover { text-decoration: underline; }
+.debt-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.debt-row input { width: 120px; }
+.status-bar {
+  text-align: center; padding: 12px; font-size: 13px; color: #27ae60;
+  background: #f0faf0; border-radius: 8px; margin-top: 16px;
+}
+.status-bar.error { color: #e74c3c; background: #fef0f0; }
+.status-bar.hidden { display: none; }
+.dynamic-field { display: flex; align-items: center; gap: 6px; }
+.dynamic-field input[type="text"] { width: 110px; }
+.tips { font-size: 12px; color: #aaa; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<!-- 登录页 -->
+<div id="loginPage">
+  <div class="login-card">
+    <h1>🔒 月度账本</h1>
+    <p>请输入密码进入</p>
+    <div class="login-error" id="loginError"></div>
+    <input type="password" id="passwordInput" placeholder="请输入密码" autocomplete="off">
+    <button onclick="doLogin()">进入账本</button>
+    <div style="margin-top:12px;font-size:12px;color:#ccc;">默认密码: 888888</div>
+  </div>
+</div>
+
+<!-- 主界面 -->
+<div id="app" class="hidden">
+  <div class="header">
+    <h1 id="headerTitle">📒 月度账本 - 2026年1月</h1>
+    <div class="header-actions">
+      <select id="monthSelect" onchange="switchMonth(this.value)"></select>
+      <button onclick="saveAll()">💾 保存</button>
+      <button onclick="showChangePwd()">⚙️</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="status-bar hidden" id="statusBar"></div>
+
+    <!-- 汇总 -->
+    <div class="section">
+      <div class="summary-row" id="summaryRow"></div>
+    </div>
+
+    <!-- 银行存款 -->
+    <div class="section" id="bankSection">
+      <div class="section-title">
+        <span id="bankTitle">🏦 银行存款 / 货币资金</span>
+        <span class="add-btn" onclick="addBankAccount()">+ 添加账户</span>
+      </div>
+      <div class="grid" id="bankGrid"></div>
+      <div class="tips">各银行卡、余额宝、零钱通等月末余额</div>
+    </div>
+
+    <!-- 理财产品 -->
+    <div class="section" id="licaiSection">
+      <div class="section-title">
+        <span id="licaiTitle">📈 理财产品</span>
+        <span class="add-btn" onclick="addLicai()">+ 添加产品</span>
+      </div>
+      <div class="grid" id="licaiGrid"></div>
+    </div>
+
+    <!-- 基金 -->
+    <div class="section" id="fundSection">
+      <div class="section-title">
+        <span id="fundTitle">📊 基金 / 股票持仓</span>
+        <span class="add-btn" onclick="addFund()">+ 添加品种</span>
+      </div>
+      <div class="grid" id="fundGrid"></div>
+    </div>
+
+    <!-- 应收账款 -->
+    <div class="section">
+      <div class="section-title"><span id="recvTitle">💰 应收账款（报销款等）</span></div>
+      <div class="field" style="max-width:200px">
+        <input type="text" id="receivablesInput" placeholder="0"
+        onfocus="if(this.value.includes(","))this.value=parseFloat(this.value.replace(/[^0-9.-]/g,''))||0"
+        onchange="monthData.receivables=num(this.value);renderSummary();markDirty();">
+      </div>
+    </div>
+
+    <!-- 负债 -->
+    <div class="section" id="debtSection">
+      <div class="section-title">
+        <span id="debtTitle">💳 负债（信用卡/欠款等）</span>
+        <span class="add-btn" onclick="addDebt()">+ 添加欠款</span>
+      </div>
+      <div class="grid" id="debtGrid"></div>
+    </div>
+
+    <!-- 收入支出 -->
+    <div class="section" id="incomeSection">
+      <div class="section-title">
+        <span id="incomeTitle">💵 本月收入</span>
+        <span class="add-btn" onclick="addIncome()">+ 添加收入项</span>
+      </div>
+      <div class="grid" id="incomeGrid"></div>
+    </div>
+
+    <div class="section" id="expenseSection">
+      <div class="section-title">
+        <span id="expenseTitle">💸 本月支出</span>
+        <span class="add-btn" onclick="addExpense()">+ 添加支出项</span>
+      </div>
+      <div class="grid" id="expenseGrid"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 修改密码弹窗 -->
+<div id="pwdModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:200;display:none;justify-content:center;align-items:center;" onclick="if(event.target===this)closePwdModal()">
+  <div style="background:#fff;border-radius:12px;padding:30px;width:320px;text-align:center;">
+    <h3 style="margin-bottom:16px;">修改密码</h3>
+    <input type="password" id="oldPwdInput" placeholder="当前密码" style="width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:8px;margin-bottom:10px;font-size:14px;outline:none;">
+    <input type="password" id="newPwdInput" placeholder="新密码" style="width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:8px;margin-bottom:10px;font-size:14px;outline:none;">
+    <input type="password" id="confirmPwdInput" placeholder="确认新密码" style="width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:8px;margin-bottom:16px;font-size:14px;outline:none;">
+    <div style="display:flex;gap:10px;">
+      <button onclick="closePwdModal()" style="flex:1;padding:10px;border:1.5px solid #e0e0e0;border-radius:8px;background:#fff;cursor:pointer;">取消</button>
+      <button onclick="changePassword()" style="flex:1;padding:10px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:8px;cursor:pointer;">确认修改</button>
+    </div>
+    <div id="pwdError" style="color:#e74c3c;font-size:13px;margin-top:10px;min-height:20px;"></div>
+  </div>
+</div>
+
+<script>
+// ======== 全局状态 ========
+let currentMonth = '2026-01';
+let monthData = null;
+let allMonths = [];
+
+// ======== 登录 ========
+async function doLogin() {
+  const pwd = document.getElementById('passwordInput').value;
+  const err = document.getElementById('loginError');
+  try {
+    const r = await fetch('/api/login', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({password: pwd || ''})
+    });
+    const res = await r.json();
+    if (res.ok) {
+      document.getElementById('loginPage').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+      initApp();
+    } else {
+      err.textContent = '密码错误，请重试';
+    }
+  } catch(e) {
+    err.textContent = '无法连接到服务器，请确认服务已启动';
+  }
+}
+document.getElementById('passwordInput').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+// ======== 初始化 ========
+async function initApp() {
+  // 加载月份列表
+  const r = await fetch('/api/months');
+  allMonths = await r.json();
+  const sel = document.getElementById('monthSelect');
+  sel.innerHTML = allMonths.map(m => {
+    const label = m.replace('-', '年') + '月';
+    return `<option value="${m}" ${m===currentMonth?'selected':''}>${label}</option>`;
+  }).join('');
+  await loadMonth(currentMonth);
+}
+
+// ======== 切换月份 ========
+async function switchMonth(month) {
+  currentMonth = month;
+  document.getElementById('headerTitle').textContent = `📒 月度账本 - ${month.replace('-', '年')}月`;
+  await loadMonth(month);
+}
+
+async function loadMonth(month) {
+  const r = await fetch(`/api/month/${month}`);
+  monthData = await r.json();
+  if (!monthData) {
+    monthData = { bankAccounts: {}, licai: {}, funds: {}, receivables: 0, debts: {}, income: {}, expenses: {} };
+  }
+  // 确保有默认字段
+  if (!monthData.bankAccounts) monthData.bankAccounts = {};
+  if (!monthData.licai) monthData.licai = {};
+  if (!monthData.funds) monthData.funds = {};
+  if (!monthData.debts) monthData.debts = {};
+  if (!monthData.income) monthData.income = {};
+  if (!monthData.expenses) monthData.expenses = {};
+  if (monthData.receivables === undefined) monthData.receivables = 0;
+  renderAll();
+  hideStatus();
+}
+
+// ======== 渲染 ========
+function renderAll() {
+  renderSummary();
+  renderBankGrid();
+  renderLicaiGrid();
+  renderFundGrid();
+  renderDebtGrid();
+  renderIncomeGrid();
+  renderExpenseGrid();
+  document.getElementById('receivablesInput').value = fmt(monthData.receivables);
+}
+
+function num(v) { return parseFloat(v) || 0; }
+
+function fmt(v) {
+  return num(v).toLocaleString('zh-CN', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function renderSummary() {
+  const bankSum = Object.values(monthData.bankAccounts).reduce((s,v)=>s+num(v),0);
+  const licaiSum = Object.values(monthData.licai).reduce((s,v)=>s+num(v),0);
+  const fundSum = Object.values(monthData.funds).reduce((s,v)=>s+num(v),0);
+  const recv = num(monthData.receivables);
+  const totalAssets = bankSum + licaiSum + fundSum + recv;
+  const debtSum = Object.values(monthData.debts).reduce((s,v)=>s+num(v),0);
+  const netAssets = totalAssets - debtSum;
+
+  const cards = [
+    {label:'🏛️ 资产总计', val:totalAssets, color:'green', big:true},
+    {label:'💳 负债总计', val:debtSum, color:'red', big:true},
+    {label:'✅ 净资产', val:netAssets, color:'green', big:true},
+  ];
+  document.getElementById('summaryRow').innerHTML = cards.map(c => `
+    <div class="summary-card ${c.big?'big':''}">
+      <div class="label">${c.label}</div>
+      <div class="amount ${c.color}">${fmt(c.val)}</div>
+    </div>
+  `).join('');
+
+  // 更新各子类标题后的金额
+  document.getElementById('bankTitle').innerHTML = `🏦 银行存款 / 货币资金 <span style="font-weight:400;font-size:14px;color:#888;">${fmt(bankSum)}</span>`;
+  document.getElementById('licaiTitle').innerHTML = `📈 理财产品 <span style="font-weight:400;font-size:14px;color:#888;">${fmt(licaiSum)}</span>`;
+  document.getElementById('fundTitle').innerHTML = `📊 基金 / 股票持仓 <span style="font-weight:400;font-size:14px;color:#888;">${fmt(fundSum)}</span>`;
+  document.getElementById('recvTitle').innerHTML = `💰 应收账款（报销款等） <span style="font-weight:400;font-size:14px;color:#888;">${fmt(recv)}</span>`;
+  document.getElementById('debtTitle').innerHTML = `💳 负债（信用卡/欠款等） <span style="font-weight:400;font-size:14px;color:#888;">${fmt(debtSum)}</span>`;
+  const incomeSum = Object.values(monthData.income).reduce((s,v)=>s+num(v),0);
+  const expenseSum = Object.values(monthData.expenses).reduce((s,v)=>s+num(v),0);
+  document.getElementById('incomeTitle').innerHTML = `💵 本月收入 <span style="font-weight:400;font-size:14px;color:#27ae60;">${fmt(incomeSum)}</span>`;
+  document.getElementById('expenseTitle').innerHTML = `💸 本月支出 <span style="font-weight:400;font-size:14px;color:#e74c3c;">${fmt(expenseSum)}</span>`;
+}
+
+function renderBankGrid() {
+  const g = document.getElementById('bankGrid');
+  g.innerHTML = Object.entries(monthData.bankAccounts).map(([name,val]) => `
+    <div class="field">
+      <label>${name}</label>
+      <input type="text" value="${fmt(val)}"
+        onfocus="if(this.value.includes(","))this.value=parseFloat(this.value.replace(/[^0-9.-]/g,''))||0"
+        onchange="monthData.bankAccounts['${name}']=num(this.value);renderSummary();markDirty();">
+    </div>
+  `).join('');
+}
+
+function renderLicaiGrid() {
+  const g = document.getElementById('licaiGrid');
+  g.innerHTML = Object.entries(monthData.licai).map(([name,val]) => `
+    <div class="field">
+      <label>${name}</label>
+      <div class="dynamic-field">
+        <input type="text" value="${fmt(val)}"
+          onfocus="if(this.value.includes(","))this.value=parseFloat(this.value.replace(/[^0-9.-]/g,''))||0"
+          onchange="monthData.licai['${name}']=num(this.value);renderSummary();markDirty();">
+        <span class="remove-btn" onclick="removeLicai('${name}')">✕</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderFundGrid() {
+  const g = document.getElementById('fundGrid');
+  g.innerHTML = Object.entries(monthData.funds).map(([name,val]) => `
+    <div class="field">
+      <label>${name}</label>
+      <div class="dynamic-field">
+        <input type="text" value="${fmt(val)}"
+          onfocus="if(this.value.includes(","))this.value=parseFloat(this.value.replace(/[^0-9.-]/g,''))||0"
+          onchange="monthData.funds['${name}']=num(this.value);renderSummary();markDirty();">
+        <span class="remove-btn" onclick="removeFund('${name}')">✕</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderDebtGrid() {
+  const g = document.getElementById('debtGrid');
+  g.innerHTML = Object.entries(monthData.debts).map(([name,val]) => `
+    <div class="field">
+      <label>${name}</label>
+      <div class="dynamic-field">
+        <input type="text" value="${fmt(val)}"
+          onfocus="if(this.value.includes(","))this.value=parseFloat(this.value.replace(/[^0-9.-]/g,''))||0"
+          onchange="monthData.debts['${name}']=num(this.value);renderSummary();markDirty();">
+        <span class="remove-btn" onclick="removeDebt('${name}')">✕</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderIncomeGrid() {
+  const g = document.getElementById('incomeGrid');
+  g.innerHTML = Object.entries(monthData.income).map(([name,val]) => `
+    <div class="field">
+      <label>${name}</label>
+      <div class="dynamic-field">
+        <input type="text" value="${fmt(val)}"
+          onfocus="if(this.value.includes(","))this.value=parseFloat(this.value.replace(/[^0-9.-]/g,''))||0"
+          onchange="monthData.income['${name}']=num(this.value);renderSummary();markDirty();">
+        <span class="remove-btn" onclick="removeIncome('${name}')">✕</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderExpenseGrid() {
+  const g = document.getElementById('expenseGrid');
+  g.innerHTML = Object.entries(monthData.expenses).map(([name,val]) => `
+    <div class="field">
+      <label>${name}</label>
+      <div class="dynamic-field">
+        <input type="text" value="${fmt(val)}"
+          onfocus="if(this.value.includes(","))this.value=parseFloat(this.value.replace(/[^0-9.-]/g,''))||0"
+          onchange="monthData.expenses['${name}']=num(this.value);renderSummary();markDirty();">
+        <span class="remove-btn" onclick="removeExpense('${name}')">✕</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ======== 添加条目 ========
+let bankCounter = 1;
+function addBankAccount() {
+  const name = prompt('请输入账户名称：');
+  if (!name) return;
+  monthData.bankAccounts[name] = 0;
+  renderBankGrid();
+  renderSummary();
+  markDirty();
+}
+
+function addLicai() {
+  const name = prompt('请输入理财产品名称：');
+  if (!name) return;
+  if (monthData.licai[name] !== undefined) { alert('该产品已存在'); return; }
+  monthData.licai[name] = 0;
+  renderLicaiGrid();
+  renderSummary();
+  markDirty();
+}
+
+function addFund() {
+  const name = prompt('请输入品种名称（如：黄金ETF、国债逆回购）：');
+  if (!name) return;
+  if (monthData.funds[name] !== undefined) { alert('该品种已存在'); return; }
+  monthData.funds[name] = 0;
+  renderFundGrid();
+  renderSummary();
+  markDirty();
+}
+
+function addDebt() {
+  const name = prompt('请输入负债项目名称（如：欠款-花呗、信用卡欠款）：');
+  if (!name) return;
+  monthData.debts[name] = 0;
+  renderDebtGrid();
+  renderSummary();
+  markDirty();
+}
+
+function addIncome() {
+  const name = prompt('请输入收入项名称：');
+  if (!name) return;
+  monthData.income[name] = 0;
+  renderIncomeGrid();
+  renderSummary();
+  markDirty();
+}
+
+function addExpense() {
+  const name = prompt('请输入支出项名称：');
+  if (!name) return;
+  monthData.expenses[name] = 0;
+  renderExpenseGrid();
+  renderSummary();
+  markDirty();
+}
+
+// ======== 删除条目 ========
+function removeLicai(name) {
+  if (!confirm(`删除理财产品「${name}」？`)) return;
+  delete monthData.licai[name];
+  renderLicaiGrid(); renderSummary(); markDirty();
+}
+function removeFund(name) {
+  if (!confirm(`删除「${name}」？`)) return;
+  delete monthData.funds[name];
+  renderFundGrid(); renderSummary(); markDirty();
+}
+function removeDebt(name) {
+  if (!confirm(`删除负债「${name}」？`)) return;
+  delete monthData.debts[name];
+  renderDebtGrid(); renderSummary(); markDirty();
+}
+function removeIncome(name) {
+  if (!confirm(`删除收入项「${name}」？`)) return;
+  delete monthData.income[name];
+  renderIncomeGrid(); renderSummary(); markDirty();
+}
+function removeExpense(name) {
+  if (!confirm(`删除支出项「${name}」？`)) return;
+  delete monthData.expenses[name];
+  renderExpenseGrid(); renderSummary(); markDirty();
+}
+
+// ======== 保存 ========
+let dirty = false;
+function markDirty() { dirty = true; }
+function hideStatus() {
+  document.getElementById('statusBar').classList.add('hidden');
+}
+
+async function saveAll() {
+  monthData.receivables = num(document.getElementById('receivablesInput').value);
+  try {
+    const r = await fetch(`/api/month/${currentMonth}`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(monthData)
+    });
+    const res = await r.json();
+    const sb = document.getElementById('statusBar');
+    sb.classList.remove('hidden','error');
+    if (res.ok) {
+      sb.textContent = `✅ ${currentMonth.replace('-','年')}月数据已保存成功！`;
+      sb.classList.remove('error');
+      dirty = false;
+    } else {
+      sb.textContent = '❌ 保存失败，请重试';
+      sb.classList.add('error');
+    }
+  } catch(e) {
+    const sb = document.getElementById('statusBar');
+    sb.classList.remove('hidden','error');
+    sb.textContent = '❌ 网络错误，请确认服务运行中';
+    sb.classList.add('error');
+  }
+}
+
+// ======== 修改密码 ========
+function showChangePwd() {
+  document.getElementById('pwdModal').style.display = 'flex';
+  document.getElementById('oldPwdInput').value = '';
+  document.getElementById('newPwdInput').value = '';
+  document.getElementById('confirmPwdInput').value = '';
+  document.getElementById('pwdError').textContent = '';
+}
+function closePwdModal() { document.getElementById('pwdModal').style.display = 'none'; }
+
+async function changePassword() {
+  const old = document.getElementById('oldPwdInput').value;
+  const p1 = document.getElementById('newPwdInput').value;
+  const p2 = document.getElementById('confirmPwdInput').value;
+  const err = document.getElementById('pwdError');
+  if (!old) { err.textContent = '请输入当前密码'; return; }
+  if (!p1 || p1.length < 4) { err.textContent = '新密码至少4位'; return; }
+  if (p1 !== p2) { err.textContent = '两次输入不一致'; return; }
+  // 验证旧密码
+  const r1 = await fetch('/api/login', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({password: old})
+  });
+  const res1 = await r1.json();
+  if (!res1.ok) { err.textContent = '当前密码错误'; return; }
+  const r2 = await fetch('/api/change-password', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({newPassword: p1})
+  });
+  const res2 = await r2.json();
+  if (res2.ok) {
+    alert('密码修改成功！');
+    closePwdModal();
+  } else {
+    err.textContent = '修改失败，请重试';
+  }
+}
+
+// Ctrl+S 快捷键
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    saveAll();
+  }
+});
+</script>
+</body>
+</html>
