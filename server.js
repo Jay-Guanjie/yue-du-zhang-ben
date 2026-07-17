@@ -156,7 +156,7 @@ app.get('/api/month/:month', (req, res) => {
   res.json(m);
 });
 
-app.post('/api/month/:month', (req, res) => {
+app.post('/api/month/:month', async (req, res) => {
   const data = readData();
   const month = req.params.month;
   if (!data.months[month]) {
@@ -174,7 +174,12 @@ app.post('/api/month/:month', (req, res) => {
   if (payload.income) data.months[month].income = payload.income;
   if (payload.expenses) data.months[month].expenses = payload.expenses;
   saveData(data);
-  res.json({ ok: true });
+  // 自动同步到 GitHub（Render 上必须同步，本地静默同步）
+  let synced = false;
+  if (IS_RENDER || GITHUB_TOKEN ) {
+    synced = await pushToGithub();
+  }
+  res.json({ ok: true, synced });
 });
 
 // 导出所有数据（备份用）
@@ -202,4 +207,92 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`  局域网访问: http://<本机IP>:${PORT}`);
   console.log(`  线上访问: 通过 Render 分配的 URL`);
   console.log(`📁 数据文件: ${DATA_FILE}`);
+});
+
+// ======== 同步到 GitHub (自动/手动) ========
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const GITHUB_OWNER = 'Jay-Guanjie';
+const GITHUB_REPO = 'yue-du-zhang-ben';
+const https = require('https');
+const IS_RENDER = !!process.env.RENDER || !!process.env.RENDER_SERVICE_ID;
+
+function githubApi(method, path, body) {
+  return new Promise((resolve, reject) => {
+    const payload = body ? JSON.stringify(body) : null;
+    const opts = {
+      hostname: 'api.github.com',
+      path: `/repos/${GITHUB_OWNER}/${GITHUB_REPO}${path}`,
+      method,
+      headers: {
+        'Authorization': `token ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'yue-du-zhang-ben',
+        'Content-Type': 'application/json',
+      }
+    };
+    if (payload) opts.headers['Content-Length'] = Buffer.byteLength(payload);
+    const req = https.request(opts, res => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { resolve(data); } });
+    });
+    req.on('error', reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
+// 推送到 GitHub
+async function pushToGithub() {
+  if (!GITHUB_TOKEN) return false;
+  try {
+    const data = readData();
+    const payload = { password: data.password, months: data.months };
+    const content = Buffer.from(JSON.stringify(payload, null, 2)).toString('base64');
+    let sha = null;
+    try {
+      const existing = await githubApi('GET', '/contents/data.json');
+      if (existing && existing.sha) sha = existing.sha;
+    } catch(e) {}
+    const result = await githubApi('PUT', '/contents/data.json', {
+      message: `同步数据 - ${new Date().toISOString().slice(0,10)}`,
+      content, sha, branch: 'main'
+    });
+    return !!(result && result.content);
+  } catch(e) {
+    console.error('GitHub sync failed:', e.message);
+    return false;
+  }
+}
+
+app.post('/api/sync-online', async (req, res) => {
+  try {
+    const data = readData();
+    // 不导出密码到线上
+    const payload = { password: data.password, months: data.months };
+    const content = Buffer.from(JSON.stringify(payload, null, 2)).toString('base64');
+
+    // 获取当前文件 SHA
+    let sha = null;
+    try {
+      const existing = await githubApi('GET', '/contents/data.json');
+      if (existing && existing.sha) sha = existing.sha;
+    } catch(e) { /* 文件可能不存在 */ }
+
+    // 上传
+    const result = await githubApi('PUT', '/contents/data.json', {
+      message: `同步数据 - ${new Date().toISOString().slice(0,10)}`,
+      content,
+      sha,
+      branch: 'main'
+    });
+
+    if (result && result.content) {
+      res.json({ ok: true, msg: '✅ 已同步到线上！Render 自动部署中（约1-2分钟）', commit: result.commit.sha.slice(0,12) });
+    } else {
+      res.json({ ok: false, msg: result.message || '同步失败' });
+    }
+  } catch (e) {
+    res.json({ ok: false, msg: `同步失败: ${e.message}` });
+  }
 });
