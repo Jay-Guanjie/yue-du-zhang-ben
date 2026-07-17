@@ -137,10 +137,11 @@ app.post('/api/login', (req, res) => {
   }
 });
 
-app.post('/api/change-password', (req, res) => {
+app.post('/api/change-password', async (req, res) => {
   const data = readData();
   data.password = req.body.newPassword;
   saveData(data);
+  if (GITHUB_TOKEN) await pushToGithub();
   res.json({ ok: true });
 });
 
