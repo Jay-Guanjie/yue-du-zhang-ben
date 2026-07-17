@@ -67,14 +67,17 @@ input, button { font-family: inherit; }
   padding: 8px 10px; border-radius: 8px; font-size: 14px; background: #f5f5f5;
   color: #555; min-height: 36px; display: flex; align-items: center;
 }
-.summary-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 0; }
+.summary-row { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 0; }
 .summary-card {
   background: linear-gradient(135deg, #f8f9ff, #eef0ff);
-  border-radius: 12px; padding: 20px; text-align: center;
+  border-radius: 12px; padding: 18px 12px; text-align: center;
 }
-.summary-card.big { padding: 28px 20px; }
-.summary-card .label { font-size: 13px; color: #888; margin-bottom: 6px; }
-.summary-card .amount { font-size: 28px; font-weight: 700; color: #333; }
+.summary-card.big { padding: 24px 16px; }
+.summary-card .label { font-size: 13px; color: #888; margin-bottom: 6px; white-space: nowrap; }
+.summary-card .amount {
+  font-size: 28px; font-weight: 700; color: #333;
+  word-break: break-all; overflow-wrap: break-word;
+}
 .summary-card .amount.green { color: #27ae60; }
 .summary-card .amount.red { color: #e74c3c; }
 .add-btn { cursor: pointer; color: #667eea; font-size: 13px; }
@@ -92,6 +95,56 @@ input, button { font-family: inherit; }
 .dynamic-field { display: flex; align-items: center; gap: 6px; }
 .dynamic-field input[type="text"] { width: 110px; }
 .tips { font-size: 12px; color: #aaa; margin-top: 8px; }
+
+/* ======== 桌面/平板端：三列 ======== */
+@media (min-width: 601px) {
+  .summary-row { grid-template-columns: repeat(3, 1fr); gap: 12px; }
+}
+
+/* ======== 移动端适配 (≤600px) ======== */
+@media (max-width: 600px) {
+  .summary-row { grid-template-columns: 1fr; gap: 8px; }
+  .summary-card { padding: 14px 12px; }
+  .summary-card.big { padding: 16px 12px; }
+  .summary-card .amount { font-size: 22px; }
+  .summary-card .label { font-size: 12px; }
+
+  .grid { grid-template-columns: repeat(auto-fill, minmax(100%, 1fr)); gap: 8px; }
+
+  .container { padding: 12px 10px; }
+  .section { padding: 14px 12px; border-radius: 10px; }
+  .section-title { font-size: 14px; flex-wrap: wrap; gap: 6px; }
+
+  .header {
+    padding: 12px 14px; flex-wrap: wrap; gap: 8px;
+  }
+  .header h1 { font-size: 16px; }
+  .header-actions { gap: 6px; width: 100%; justify-content: flex-end; }
+  .header-actions button, .header-actions select {
+    padding: 6px 10px; font-size: 12px;
+  }
+
+  .field input { padding: 10px 10px; font-size: 15px; }
+  .field label { font-size: 11px; }
+
+  .login-card { width: 88%; padding: 28px 20px; }
+  .login-card h1 { font-size: 20px; }
+  .login-card input { padding: 12px 14px; font-size: 15px; }
+
+  .debt-row { flex-direction: column; align-items: stretch; }
+  .debt-row input { width: 100%; }
+  .dynamic-field input[type="text"] { width: 100%; }
+
+  .status-bar { font-size: 12px; padding: 10px; }
+
+  #pwdModal > div { width: 88%; padding: 24px 20px; }
+}
+
+@media (max-width: 400px) {
+  .summary-card .amount { font-size: 18px; }
+  .header h1 { font-size: 14px; }
+  .header-actions button, .header-actions select { padding: 4px 8px; font-size: 11px; }
+}
 </style>
 </head>
 <body>
@@ -113,6 +166,7 @@ input, button { font-family: inherit; }
   <div class="header">
     <h1 id="headerTitle">📒 月度账本 - 2026年1月</h1>
     <div class="header-actions">
+      <button onclick="syncOnline()" style="background:rgba(46,204,113,.8);padding:6px 10px;font-size:12px;">☁️ 同步</button>
       <select id="monthSelect" onchange="switchMonth(this.value)"></select>
       <button onclick="saveAll()">💾 保存</button>
       <button onclick="showChangePwd()">⚙️</button>
@@ -248,6 +302,24 @@ async function initApp() {
     const label = m.replace('-', '年') + '月';
     return `<option value="${m}" ${m===currentMonth?'selected':''}>${label}</option>`;
   }).join('');
+
+  // 预计算所有月份净资产（用于"较上月变动"）
+  window._netAssetsByMonth = {};
+  for (const m of allMonths) {
+    try {
+      const resp = await fetch(`/api/month/${m}`);
+      const d = await resp.json();
+      if (d && d.bankAccounts) {
+        const banks = Object.values(d.bankAccounts||{}).reduce((s,v)=>s+num(v),0);
+        const licai = Object.values(d.licai||{}).reduce((s,v)=>s+num(v),0);
+        const funds = Object.values(d.funds||{}).reduce((s,v)=>s+num(v),0);
+        const recv = num(d.receivables||0);
+        const debts = Object.values(d.debts||{}).reduce((s,v)=>s+num(v),0);
+        window._netAssetsByMonth[m] = banks + licai + funds + recv - debts;
+      }
+    } catch(e) {}
+  }
+
   await loadMonth(currentMonth);
 }
 
@@ -302,12 +374,26 @@ function renderSummary() {
   const totalAssets = bankSum + licaiSum + fundSum + recv;
   const debtSum = Object.values(monthData.debts).reduce((s,v)=>s+num(v),0);
   const netAssets = totalAssets - debtSum;
+  const incomeSum = Object.values(monthData.income).reduce((s,v)=>s+num(v),0);
+  const expenseSum = Object.values(monthData.expenses).reduce((s,v)=>s+num(v),0);
+  const netIncome = incomeSum - expenseSum;
 
   const cards = [
     {label:'🏛️ 资产总计', val:totalAssets, color:'green', big:true},
     {label:'💳 负债总计', val:debtSum, color:'red', big:true},
     {label:'✅ 净资产', val:netAssets, color:'green', big:true},
   ];
+
+  // 较上月净资产变动（如果已加载 allData）
+  if (window._netAssetsByMonth && window._netAssetsByMonth[currentMonth] !== undefined) {
+    cards.push({
+      label:'📈 较上月变动',
+      val: netAssets - window._netAssetsByMonth[currentMonth],
+      color: (netAssets - window._netAssetsByMonth[currentMonth]) >= 0 ? 'green' : 'red',
+      big: false
+    });
+  }
+
   document.getElementById('summaryRow').innerHTML = cards.map(c => `
     <div class="summary-card ${c.big?'big':''}">
       <div class="label">${c.label}</div>
@@ -321,10 +407,21 @@ function renderSummary() {
   document.getElementById('fundTitle').innerHTML = `📊 基金 / 股票持仓 <span style="font-weight:400;font-size:14px;color:#888;">${fmt(fundSum)}</span>`;
   document.getElementById('recvTitle').innerHTML = `💰 应收账款（报销款等） <span style="font-weight:400;font-size:14px;color:#888;">${fmt(recv)}</span>`;
   document.getElementById('debtTitle').innerHTML = `💳 负债（信用卡/欠款等） <span style="font-weight:400;font-size:14px;color:#888;">${fmt(debtSum)}</span>`;
-  const incomeSum = Object.values(monthData.income).reduce((s,v)=>s+num(v),0);
-  const expenseSum = Object.values(monthData.expenses).reduce((s,v)=>s+num(v),0);
   document.getElementById('incomeTitle').innerHTML = `💵 本月收入 <span style="font-weight:400;font-size:14px;color:#27ae60;">${fmt(incomeSum)}</span>`;
   document.getElementById('expenseTitle').innerHTML = `💸 本月支出 <span style="font-weight:400;font-size:14px;color:#e74c3c;">${fmt(expenseSum)}</span>`;
+
+  // 净收入/净支出卡片（放在收入/支出区域之间）
+  let netEl = document.getElementById('netIncomeCard');
+  if (!netEl) {
+    netEl = document.createElement('div');
+    netEl.id = 'netIncomeCard';
+    netEl.style.cssText = 'margin-top:10px;background:#fff;border-radius:12px;padding:14px 20px;box-shadow:0 1px 3px rgba(0,0,0,.08);text-align:center;';
+    const incomeSection = document.getElementById('incomeSection');
+    incomeSection.parentNode.insertBefore(netEl, incomeSection.nextSibling);
+  }
+  const netLabel = netIncome >= 0 ? '🟢 本月净收入' : '🔴 本月净支出';
+  const netColor = netIncome >= 0 ? '#27ae60' : '#e74c3c';
+  netEl.innerHTML = `<div style="font-size:13px;color:#888;margin-bottom:4px;">${netLabel}</div><div style="font-size:24px;font-weight:700;color:${netColor};">${fmt(Math.abs(netIncome))}</div>`;
 }
 
 function renderBankGrid() {
@@ -517,7 +614,9 @@ async function saveAll() {
     const sb = document.getElementById('statusBar');
     sb.classList.remove('hidden','error');
     if (res.ok) {
-      sb.textContent = `✅ ${currentMonth.replace('-','年')}月数据已保存成功！`;
+      let msg = `✅ ${currentMonth.replace('-','年')}月数据已保存`;
+      if (res.synced) msg += '，已同步到线上 🌐';
+      sb.textContent = msg;
       sb.classList.remove('error');
       dirty = false;
     } else {
@@ -577,6 +676,31 @@ document.addEventListener('keydown', e => {
     saveAll();
   }
 });
+
+// ======== 同步到线上 ========
+async function syncOnline() {
+  const btn = event?.target || document.querySelector('[onclick="syncOnline()"]');
+  const origText = btn.textContent;
+  btn.textContent = '⏳ 同步中...';
+  btn.disabled = true;
+  try {
+    // 先保存当前数据
+    await saveAll();
+    const r = await fetch('/api/sync-online', { method: 'POST' });
+    const res = await r.json();
+    const sb = document.getElementById('statusBar');
+    sb.classList.remove('hidden','error');
+    sb.textContent = res.ok ? res.msg : '❌ ' + (res.msg || '同步失败');
+    if (!res.ok) sb.classList.add('error');
+  } catch(e) {
+    const sb = document.getElementById('statusBar');
+    sb.classList.remove('hidden','error');
+    sb.textContent = '❌ 同步失败: 网络错误';
+    sb.classList.add('error');
+  }
+  btn.textContent = origText;
+  btn.disabled = false;
+}
 </script>
 </body>
 </html>
