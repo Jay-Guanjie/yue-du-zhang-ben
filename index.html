@@ -384,14 +384,28 @@ function renderSummary() {
     {label:'✅ 净资产', val:netAssets, color:'green', big:true},
   ];
 
-  // 较上月净资产变动（如果已加载 allData）
-  if (window._netAssetsByMonth && window._netAssetsByMonth[currentMonth] !== undefined) {
-    cards.push({
-      label:'📈 较上月变动',
-      val: netAssets - window._netAssetsByMonth[currentMonth],
-      color: (netAssets - window._netAssetsByMonth[currentMonth]) >= 0 ? 'green' : 'red',
-      big: false
-    });
+  // 较上月净资产变动（取上一个有数据的月份做对比）
+  if (window._netAssetsByMonth) {
+    const sortedMonths = Object.keys(window._netAssetsByMonth).sort();
+    const idx = sortedMonths.indexOf(currentMonth);
+    let prevNet = undefined;
+    if (idx > 0) {
+      for (let i = idx - 1; i >= 0; i--) {
+        if (window._netAssetsByMonth[sortedMonths[i]] !== undefined) {
+          prevNet = window._netAssetsByMonth[sortedMonths[i]];
+          break;
+        }
+      }
+    }
+    if (prevNet !== undefined) {
+      const diff = netAssets - prevNet;
+      cards.push({
+        label: '📈 较上月变动',
+        val: diff,
+        color: diff >= 0 ? 'green' : 'red',
+        big: false
+      });
+    }
   }
 
   document.getElementById('summaryRow').innerHTML = cards.map(c => `
