@@ -395,7 +395,12 @@ function renderAll() {
   document.getElementById('receivablesInput').value = fmt(monthData.receivables);
 }
 
-function num(v) { return parseFloat(v) || 0; }
+function num(v) {
+  if (typeof v === 'string' && /[+\-*/]/.test(v)) {
+    try { return Function('"use strict"; return (' + v + ')')() || 0; } catch(e) {}
+  }
+  return parseFloat(v) || 0;
+}
 
 function fmt(v) {
   return num(v).toLocaleString('zh-CN', {minimumFractionDigits:2, maximumFractionDigits:2});
