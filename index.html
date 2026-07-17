@@ -344,6 +344,41 @@ async function loadMonth(month) {
   if (!monthData.income) monthData.income = {};
   if (!monthData.expenses) monthData.expenses = {};
   if (monthData.receivables === undefined) monthData.receivables = 0;
+
+  // 如果当前月份空字段太多，从上一个有数据的月份继承结构
+  if (Object.keys(monthData.licai||{}).length === 0 ||
+      Object.keys(monthData.funds||{}).length === 0 ||
+      Object.keys(monthData.debts||{}).length === 0 ||
+      Object.keys(monthData.income||{}).length === 0 ||
+      Object.keys(monthData.expenses||{}).length === 0 ||
+      Object.keys(monthData.bankAccounts||{}).length === 0) {
+
+    const sorted = allMonths.slice().sort();
+    const idx = sorted.indexOf(currentMonth);
+    let srcMonth = null;
+    for (let i = idx - 1; i >= 0; i--) {
+      try {
+        const r2 = await fetch(`/api/month/${sorted[i]}`);
+        const src = await r2.json();
+        if (src && Object.keys(src.bankAccounts||{}).length > 0) { srcMonth = src; break; }
+      } catch(e) {}
+    }
+    if (srcMonth) {
+      if (Object.keys(monthData.bankAccounts||{}).length === 0 && Object.keys(srcMonth.bankAccounts||{}).length > 0)
+        monthData.bankAccounts = Object.fromEntries(Object.keys(srcMonth.bankAccounts).map(k => [k, 0]));
+      if (Object.keys(monthData.licai||{}).length === 0 && Object.keys(srcMonth.licai||{}).length > 0)
+        monthData.licai = Object.fromEntries(Object.keys(srcMonth.licai).map(k => [k, 0]));
+      if (Object.keys(monthData.funds||{}).length === 0 && Object.keys(srcMonth.funds||{}).length > 0)
+        monthData.funds = Object.fromEntries(Object.keys(srcMonth.funds).map(k => [k, 0]));
+      if (Object.keys(monthData.debts||{}).length === 0 && Object.keys(srcMonth.debts||{}).length > 0)
+        monthData.debts = Object.fromEntries(Object.keys(srcMonth.debts).map(k => [k, 0]));
+      if (Object.keys(monthData.income||{}).length === 0 && Object.keys(srcMonth.income||{}).length > 0)
+        monthData.income = Object.fromEntries(Object.keys(srcMonth.income).map(k => [k, 0]));
+      if (Object.keys(monthData.expenses||{}).length === 0 && Object.keys(srcMonth.expenses||{}).length > 0)
+        monthData.expenses = Object.fromEntries(Object.keys(srcMonth.expenses).map(k => [k, 0]));
+    }
+  }
+
   renderAll();
   hideStatus();
 }
