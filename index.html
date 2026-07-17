@@ -424,14 +424,14 @@ function renderSummary() {
   document.getElementById('incomeTitle').innerHTML = `💵 本月收入 <span style="font-weight:400;font-size:14px;color:#27ae60;">${fmt(incomeSum)}</span>`;
   document.getElementById('expenseTitle').innerHTML = `💸 本月支出 <span style="font-weight:400;font-size:14px;color:#e74c3c;">${fmt(expenseSum)}</span>`;
 
-  // 净收入/净支出卡片（放在收入/支出区域之间）
+  // 净收入/净支出卡片（放在本月收入上方）
   let netEl = document.getElementById('netIncomeCard');
   if (!netEl) {
     netEl = document.createElement('div');
     netEl.id = 'netIncomeCard';
     netEl.style.cssText = 'margin-top:10px;background:#fff;border-radius:12px;padding:14px 20px;box-shadow:0 1px 3px rgba(0,0,0,.08);text-align:center;';
     const incomeSection = document.getElementById('incomeSection');
-    incomeSection.parentNode.insertBefore(netEl, incomeSection.nextSibling);
+    incomeSection.parentNode.insertBefore(netEl, incomeSection);
   }
   const netLabel = netIncome >= 0 ? '🟢 本月净收入' : '🔴 本月净支出';
   const netColor = netIncome >= 0 ? '#27ae60' : '#e74c3c';
