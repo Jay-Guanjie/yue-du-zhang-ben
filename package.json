@@ -1,0 +1,12 @@
+{
+  "name": "yue-du-zhang-ben",
+  "version": "1.0.0",
+  "description": "月度记账-2026 网页账本",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
