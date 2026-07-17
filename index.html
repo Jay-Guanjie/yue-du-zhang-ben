@@ -168,6 +168,7 @@ input, button { font-family: inherit; }
     <div class="header-actions">
       <button onclick="syncOnline()" style="background:rgba(46,204,113,.8);padding:6px 10px;font-size:12px;">☁️ 同步</button>
       <select id="monthSelect" onchange="switchMonth(this.value)"></select>
+      <button onclick="addMonth()" style="padding:6px 10px;font-size:12px;">📅 +</button>
       <button onclick="saveAll()">💾 保存</button>
       <button onclick="showChangePwd()">⚙️</button>
     </div>
@@ -766,6 +767,38 @@ async function syncOnline() {
   }
   btn.textContent = origText;
   btn.disabled = false;
+}
+
+// ======== 新增月份 ========
+async function addMonth() {
+  if (!confirm('确认新增下一个月？将从当前最后一个月复制所有项目（金额为0）')) return;
+  try {
+    const r = await fetch('/api/add-month', { method: 'POST' });
+    const res = await r.json();
+    const sb = document.getElementById('statusBar');
+    sb.classList.remove('hidden','error');
+    if (res.ok) {
+      sb.textContent = `✅ 已新增 ${res.month}，并同步到线上 🌐`;
+      // 刷新月份列表
+      const mr = await fetch('/api/months');
+      allMonths = await mr.json();
+      const sel = document.getElementById('monthSelect');
+      sel.innerHTML = allMonths.map(m => {
+        const label = m.replace('-', '年') + '月';
+        return `<option value="${m}">${label}</option>`;
+      }).join('');
+      sel.value = res.month;
+      await switchMonth(res.month);
+    } else {
+      sb.textContent = '❌ ' + (res.msg || '新增失败');
+      sb.classList.add('error');
+    }
+  } catch(e) {
+    const sb = document.getElementById('statusBar');
+    sb.classList.remove('hidden','error');
+    sb.textContent = '❌ 网络错误';
+    sb.classList.add('error');
+  }
 }
 </script>
 </body>
