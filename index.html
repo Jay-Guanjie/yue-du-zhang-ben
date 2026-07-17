@@ -215,7 +215,7 @@ input, button { font-family: inherit; }
       <div class="field" style="max-width:200px">
         <input type="text" id="receivablesInput" placeholder="0"
         onfocus="if(this.value.includes(","))this.value=parseFloat(this.value.replace(/[^0-9.-]/g,''))||0"
-        onchange="monthData.receivables=num(this.value);renderSummary();markDirty();">
+        onchange="monthData.receivables=num(this.value);renderSummary();markDirty();this.value=fmt(num(this.value));">
       </div>
     </div>
 
@@ -497,7 +497,7 @@ function renderBankGrid() {
       <label onclick="renameItem('bankAccounts','${name}')" style="cursor:pointer;">${name} ✏️</label>
       <input type="text" value="${fmt(val)}"
         onfocus="if(this.value.includes(','))this.value=parseFloat(this.value.replace(/[^0-9.-]/g,''))||0"
-        onchange="monthData.bankAccounts['${name}']=num(this.value);renderSummary();markDirty();">
+        onchange="monthData.bankAccounts['${name}']=num(this.value);renderSummary();markDirty();this.value=fmt(num(this.value));">
     </div>
   `).join('');
 }
@@ -510,7 +510,7 @@ function renderLicaiGrid() {
       <div class="dynamic-field">
         <input type="text" value="${fmt(val)}"
           onfocus="if(this.value.includes(","))this.value=parseFloat(this.value.replace(/[^0-9.-]/g,''))||0"
-          onchange="monthData.licai['${name}']=num(this.value);renderSummary();markDirty();">
+          onchange="monthData.licai['${name}']=num(this.value);renderSummary();markDirty();this.value=fmt(num(this.value));">
         <span class="remove-btn" onclick="removeLicai('${name}')">✕</span>
       </div>
     </div>
@@ -525,7 +525,7 @@ function renderFundGrid() {
       <div class="dynamic-field">
         <input type="text" value="${fmt(val)}"
           onfocus="if(this.value.includes(","))this.value=parseFloat(this.value.replace(/[^0-9.-]/g,''))||0"
-          onchange="monthData.funds['${name}']=num(this.value);renderSummary();markDirty();">
+          onchange="monthData.funds['${name}']=num(this.value);renderSummary();markDirty();this.value=fmt(num(this.value));">
         <span class="remove-btn" onclick="removeFund('${name}')">✕</span>
       </div>
     </div>
@@ -540,7 +540,7 @@ function renderDebtGrid() {
       <div class="dynamic-field">
         <input type="text" value="${fmt(val)}"
           onfocus="if(this.value.includes(","))this.value=parseFloat(this.value.replace(/[^0-9.-]/g,''))||0"
-          onchange="monthData.debts['${name}']=num(this.value);renderSummary();markDirty();">
+          onchange="monthData.debts['${name}']=num(this.value);renderSummary();markDirty();this.value=fmt(num(this.value));">
         <span class="remove-btn" onclick="removeDebt('${name}')">✕</span>
       </div>
     </div>
@@ -555,7 +555,7 @@ function renderIncomeGrid() {
       <div class="dynamic-field">
         <input type="text" value="${fmt(val)}"
           onfocus="if(this.value.includes(","))this.value=parseFloat(this.value.replace(/[^0-9.-]/g,''))||0"
-          onchange="monthData.income['${name}']=num(this.value);renderSummary();markDirty();">
+          onchange="monthData.income['${name}']=num(this.value);renderSummary();markDirty();this.value=fmt(num(this.value));">
         <span class="remove-btn" onclick="removeIncome('${name}')">✕</span>
       </div>
     </div>
@@ -570,7 +570,7 @@ function renderExpenseGrid() {
       <div class="dynamic-field">
         <input type="text" value="${fmt(val)}"
           onfocus="if(this.value.includes(","))this.value=parseFloat(this.value.replace(/[^0-9.-]/g,''))||0"
-          onchange="monthData.expenses['${name}']=num(this.value);renderSummary();markDirty();">
+          onchange="monthData.expenses['${name}']=num(this.value);renderSummary();markDirty();this.value=fmt(num(this.value));">
         <span class="remove-btn" onclick="removeExpense('${name}')">✕</span>
       </div>
     </div>
