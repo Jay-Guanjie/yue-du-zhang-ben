@@ -202,6 +202,37 @@ app.post('/api/import', (req, res) => {
   res.json({ ok: true, msg: '数据恢复成功' });
 });
 
+// 新增月份
+app.post('/api/add-month', async (req, res) => {
+  const data = readData();
+  const months = Object.keys(data.months).sort();
+  const last = months[months.length - 1];
+  if (!last) return res.json({ ok: false, msg: '没有基准月份' });
+  // 生成新月份：取最后一月 +1 月
+  const [y, m] = last.split('-').map(Number);
+  const nextM = m === 12 ? 1 : m + 1;
+  const nextY = m === 12 ? y + 1 : y;
+  const nextMonth = `${nextY}-${String(nextM).padStart(2, '0')}`;
+  if (data.months[nextMonth]) {
+    return res.json({ ok: false, msg: `${nextMonth} 已存在` });
+  }
+  // 从上一月复制结构
+  const src = data.months[last];
+  data.months[nextMonth] = {
+    bankAccounts: Object.fromEntries(Object.keys(src.bankAccounts||{}).map(k => [k, 0])),
+    licai: Object.fromEntries(Object.keys(src.licai||{}).map(k => [k, 0])),
+    funds: Object.fromEntries(Object.keys(src.funds||{}).map(k => [k, 0])),
+    receivables: 0,
+    debts: Object.fromEntries(Object.keys(src.debts||{}).map(k => [k, 0])),
+    income: Object.fromEntries(Object.keys(src.income||{}).map(k => [k, 0])),
+    expenses: Object.fromEntries(Object.keys(src.expenses||{}).map(k => [k, 0]))
+  };
+  saveData(data);
+  // 同步到 GitHub
+  if (GITHUB_TOKEN) await pushToGithub();
+  res.json({ ok: true, month: nextMonth });
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ 月度账本已启动！`);
   console.log(`  本地访问: http://localhost:${PORT}`);
