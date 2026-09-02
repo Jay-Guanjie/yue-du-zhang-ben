@@ -176,6 +176,7 @@ input, button { font-family: inherit; }
 
   <div class="container">
     <div class="status-bar hidden" id="statusBar"></div>
+    <div id="modeBanner" style="display:none;margin-bottom:10px;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:600;background:#fff8e1;color:#b7791f;border:1px solid #f0d48a;"></div>
 
     <!-- 汇总 -->
     <div class="section">
@@ -295,6 +296,19 @@ document.getElementById('passwordInput').addEventListener('keydown', e => { if(e
 
 // ======== 初始化 ========
 async function initApp() {
+  // 探测数据模式：GitHub 是否已配置同步
+  try {
+    const hr = await fetch('/api/health');
+    const hp = await hr.json();
+    const banner = document.getElementById('modeBanner');
+    if (hp.github === true) {
+      banner.style.cssText = 'display:block;margin-bottom:10px;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:600;background:#e6f7ee;color:#1a7f4b;border:1px solid #a8e6c8;';
+      banner.textContent = '✅ 数据已跟随 GitHub 持久化，重启不丢失';
+    } else if (hp.github === false) {
+      banner.style.cssText = 'display:block;margin-bottom:10px;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:600;background:#fff0f0;color:#c0392b;border:1px solid #f0a0a0;';
+      banner.textContent = '⚠️ 未配置 GitHub 同步，数据仅存当前设备，重启/重新部署可能丢失！请配置 GITHUB_TOKEN 并点击「☁️ 同步」';
+    }
+  } catch(e) {}
   // 加载月份列表
   const r = await fetch('/api/months');
   allMonths = await r.json();
@@ -682,7 +696,8 @@ async function saveAll() {
     sb.classList.remove('hidden','error');
     if (res.ok) {
       let msg = `✅ ${currentMonth.replace('-','年')}月数据已保存`;
-      if (res.synced) msg += '，已同步到线上 🌐';
+      if (res.synced) msg += '，已推送 GitHub 持久化 ☁️';
+      else msg += ' ⚠️ 未配置同步，重启可能丢失！请点击「☁️ 同步」';
       sb.textContent = msg;
       sb.classList.remove('error');
       dirty = false;
