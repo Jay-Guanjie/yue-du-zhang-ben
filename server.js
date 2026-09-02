@@ -246,9 +246,19 @@ app.get('/api/month/:month', async (req, res) => {
 });
 
 app.post('/api/month/:month', async (req, res) => {
-  // 串行化读-改-存, 避免并发保存互相覆盖中间态
-  const job = saveChain.then(async () => {
-    const data = await readData();
+  // 串行化读-改-存(真正的互斥: 锁内同步操作, 避免2个并发请求读到同一引用互相覆盖)
+  const run = saveChain.then(async () => {
+    // 同步拿缓存最新引用(不 await, 防止让出事件循环导致交错)
+    let data = cache;
+    if (!data) {
+      try {
+        if (fs.existsSync(DATA_FILE)) data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
+      } catch(e) {}
+      if (!data) {
+        await readData();  // 仅首次未加载时异步初始化一次
+        data = cache;
+      }
+    }
     const month = req.params.month;
     if (!data.months[month]) {
       data.months[month] = {
@@ -258,7 +268,7 @@ app.post('/api/month/:month', async (req, res) => {
     }
     const payload = req.body;
     const m = data.months[month];
-    // 前端每次提交完整月数据，整体覆盖；互斥锁保证后到的保存基于最新缓存
+    // 前端提交完整月数据, 整体覆盖(串行锁保证后一保存基于最新缓存)
     if (payload.bankAccounts) m.bankAccounts = payload.bankAccounts;
     if (payload.licai) m.licai = payload.licai;
     if (payload.funds) m.funds = payload.funds;
@@ -268,8 +278,8 @@ app.post('/api/month/:month', async (req, res) => {
     if (payload.expenses) m.expenses = payload.expenses;
     commitData(data);
   });
-  saveChain = job.catch(() => {});
-  await job;
+  saveChain = run.catch(() => {});
+  await saveChain;
   res.json({ ok: true, synced: !!GITHUB_TOKEN });
 });
 
@@ -328,11 +338,13 @@ app.post('/api/sync-online', async (req, res) => {
 // 健康检查（Render 用）
 app.get('/api/health', (req, res) => res.json({ ok: true, github: !!GITHUB_TOKEN }));
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`✅ 月度账本已启动！`);
   console.log(`  本地访问: http://localhost:${PORT}`);
   console.log(`  局域网访问: http://<本机IP>:${PORT}`);
   console.log(`  线上访问: 通过 Render 分配的 URL`);
   console.log(`📁 数据文件: ${DATA_FILE}`);
   console.log(`☁️  GitHub 同步: ${GITHUB_TOKEN ? '已配置 (唯一真相源=GitHub)' : '未配置 — 数据只存本地/易失磁盘，重启可能丢失！'}`);
+  // 启动预热: 提前加载真相源到内存, 保证后续并发保存/读取全是同步串行、无交错
+  try { await readData(); } catch(e) { console.error('[启动] 预热失败:', e.message); }
 });
